@@ -2,6 +2,6 @@
 
 ### Technologies:
 - IDE: Pycharm Community Edition
-- Framework: Django Rest Framework
+- Framework: Django REST Framework
 - RDBMS: PostgreSQL
 
