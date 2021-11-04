@@ -15,7 +15,7 @@ def registration(request):
         data['first_name'] = acc.first_name
         data['last_name'] = acc.last_name
         data['email'] = acc.email
-        
+
         acc.save()
     else:
         data['response'] = serializer.errors
