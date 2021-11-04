@@ -1,6 +1,6 @@
 from django.db import models
 from . import serializers
-from rest_framework import viewsets, status
+from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
@@ -15,8 +15,9 @@ def registration(request):
         data['first_name'] = acc.first_name
         data['last_name'] = acc.last_name
         data['email'] = acc.email
-
         acc.save()
+        AuthToken = Token.objects.get_or_create(user=acc)[0].key
+        data['token'] = AuthToken
     else:
         data['response'] = serializer.errors
     return Response(data)
