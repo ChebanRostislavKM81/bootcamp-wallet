@@ -23,3 +23,4 @@ class Registration(serializers.ModelSerializer):
         acc.set_password(password)
         acc.save()
         return acc
+

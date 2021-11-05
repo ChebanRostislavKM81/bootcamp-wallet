@@ -23,6 +23,8 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('user/signup', views.registration),
+    path('user/login', views.authentication),
+    path('user/logout', views.logging_out),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "docs/",
@@ -31,4 +33,5 @@ urlpatterns = [
         ),
         name="swagger-ui",
     ),
+
 ]
