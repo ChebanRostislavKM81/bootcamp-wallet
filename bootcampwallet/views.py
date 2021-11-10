@@ -61,7 +61,7 @@ def authentication(request):
         raise ValidationError({"response": "Invalid data"})
 
 
-@api_view(['POST,'])
+@api_view(['POST',])
 @permission_classes([IsAuthenticated])
 def logging_out(request):
     AuthToken = request.user.auth_token
