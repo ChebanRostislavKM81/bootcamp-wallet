@@ -100,7 +100,9 @@ def fill(request):
     )
 
     new_transaction.save()
-    models.Users.objects.filter(id=request.user.id).update(balance=F("balance") + value)
+    change_balance = models.Users.objects.get(email=request.user.email)
+    change_balance.balance = F('balance') + value
+    change_balance.save()
 
     data["balance"] = request.user.balance
 
@@ -130,7 +132,9 @@ def withdraw(request):
     )
 
     new_transaction.save()
-    models.Users.objects.filter(id=request.user.id).update(balance=F("balance") - value)
+    change_balance = models.Users.objects.get(email=request.user.email)
+    change_balance.balance = F('balance') - value
+    change_balance.save()
 
     data["balance"] = request.user.balance
 
