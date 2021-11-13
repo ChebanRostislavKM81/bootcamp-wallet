@@ -16,7 +16,8 @@ class Registration(serializers.ModelSerializer):
             first_name=self.validated_data['first_name'],
             last_name=self.validated_data['last_name'],
             birth_date=self.validated_data['birth_date'],
-            email=self.validated_data['email']
+            email=self.validated_data['email'],
+            balance = 0.0
                            )
         extra_kwargs = {"password":{"write_only":True}}
         password = self.validated_data['password']
@@ -24,3 +25,6 @@ class Registration(serializers.ModelSerializer):
         acc.save()
         return acc
 
+class updating_balance(serializers.ModelSerializer):
+    class Meta:
+        model = models.Transactions

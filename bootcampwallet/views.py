@@ -3,12 +3,18 @@ from . import serializers
 from . import models
 from django.contrib.auth import login, logout, authenticate
 from rest_framework.authtoken.models import Token
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.authentication import TokenAuthentication
 from django.core.exceptions import ValidationError
+from datetime import date
+from django.db.models import F
+
+
 
 @api_view(['POST',])
+@authentication_classes([TokenAuthentication])
 @permission_classes([AllowAny])
 def registration(request):
 
@@ -32,6 +38,7 @@ def registration(request):
 
 
 @api_view(['POST',])
+@authentication_classes([TokenAuthentication])
 @permission_classes([AllowAny])
 def authentication(request):
 
@@ -56,24 +63,75 @@ def authentication(request):
         login(request, acc)
         data["token"] = AuthToken
 
+
         return Response(data)
     else:
         raise ValidationError({"response": "Invalid data"})
 
 
 @api_view(['POST',])
+@authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def logging_out(request):
-    AuthToken = request.user.auth_token
+    token = request.user.auth_token
     request.user.auth_token.delete()
     logout(request)
-    return Response(headers={"Authentication":AuthToken})
+    return Response(status=204)
 
 
 
+@api_view(['POST',])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def fill(request):
+
+    data = {}
+
+    value = request.data["value"]
+    if (type(value)!=int and type(value)!=float) or value <= 0.0 :
+        return Response(status=400)
+
+    new_transaction = models.Transactions(
+        type_of_transaction="fill",
+        user_id=request.user.id,
+        secondary_email=None,
+        value=value,
+        date=date.today()
+    )
+
+    new_transaction.save()
+    models.Users.objects.filter(id=request.user.id).update(balance=F("balance") + value)
+
+    data["balance"] = request.user.balance
 
 
+    return Response(data)
 
+@api_view(['POST',])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def withdraw(request):
 
+    data = {}
 
+    value = request.data["value"]
+    if (type(value)!=int and type(value)!=float) or value <= 0.0 :
+        return Response(status=400)
 
+    if request.user.balance < value:
+        return Response(status=400)
+
+    new_transaction = models.Transactions(
+        type_of_transaction="withdraw",
+        user_id=request.user.id,
+        secondary_email=None,
+        value=value,
+        date=date.today()
+    )
+
+    new_transaction.save()
+    models.Users.objects.filter(id=request.user.id).update(balance=F("balance") - value)
+
+    data["balance"] = request.user.balance
+
+    return Response(data)
