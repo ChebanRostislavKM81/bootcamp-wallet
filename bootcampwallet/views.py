@@ -100,7 +100,9 @@ def fill(request):
     )
 
     new_transaction.save()
-    models.Users.objects.filter(id=request.user.id).update(balance=F("balance") + value)
+    change_balance = models.Users.objects.get(email=request.user.email)
+    change_balance.balance = F('balance') + value
+    change_balance.save()
 
     data["balance"] = request.user.balance
 
@@ -130,8 +132,56 @@ def withdraw(request):
     )
 
     new_transaction.save()
-    models.Users.objects.filter(id=request.user.id).update(balance=F("balance") - value)
+    change_balance = models.Users.objects.get(email=request.user.email)
+    change_balance.balance = F('balance') - value
+    change_balance.save()
 
     data["balance"] = request.user.balance
 
     return Response(data)
+
+
+@api_view(['POST',])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def pay(request):
+    data = {}
+
+    value = request.data["value"]
+    if (type(value) != int and type(value) != float) or value <= 0.0:
+        return Response(status=400)
+
+    if request.user.balance < value:
+        return Response(status=400)
+
+    recipient_email = request.data["email"]
+
+    if recipient_email == request.user.email:
+        return Response(status=400)
+
+
+    try:
+        recipient = models.Users.objects.get(email=recipient_email)
+    except:
+        return Response(status=400)
+
+    new_transaction = models.Transactions(
+        type_of_transaction="pay",
+        user_id=request.user.id,
+        secondary_email=recipient_email,
+        value=value,
+        date=date.today()
+    )
+
+    new_transaction.save()
+
+    change_balance = models.Users.objects.get(email=request.user.email)
+    change_balance.balance = F('balance') - value
+    change_balance.save()
+
+    data["balance"] = request.user.balance
+    recipient.balance = F('balance') + value
+    recipient.save()
+    return Response(data)
+
+
