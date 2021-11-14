@@ -28,6 +28,7 @@ urlpatterns = [
     path('transactions/fill', views.fill),
     path('transactions/withdraw', views.withdraw),
     path('transactions/pay', views.pay),
+    path('transactions', views.get_transactions),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "docs/",

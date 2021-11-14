@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import TokenAuthentication
 from django.core.exceptions import ValidationError
-from datetime import date
+from datetime import date,datetime
 from django.db.models import F
 
 
@@ -175,6 +175,16 @@ def pay(request):
 
     new_transaction.save()
 
+    new_transaction = models.Transactions(
+        type_of_transaction="recieve",
+        user_id=recipient.id,
+        secondary_email=None,
+        value=value,
+        date=date.today()
+    )
+
+    new_transaction.save()
+
     change_balance = models.Users.objects.get(email=request.user.email)
     change_balance.balance = F('balance') - value
     change_balance.save()
@@ -183,5 +193,44 @@ def pay(request):
     recipient.balance = F('balance') + value
     recipient.save()
     return Response(data)
+
+
+@api_view(['GET',])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+
+def get_transactions(request):
+
+    try:
+        start_date = request.query_params["start_date"]
+    except:
+        return Response(status=400)
+
+    try:
+        end_date = request.query_params["end_date"]
+    except:
+        return Response(status=400)
+
+    start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+    end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+    user_transactions = models.Transactions.objects.filter(user_id=request.user.id)
+
+    list_of_transactions = []
+
+    for transaction in user_transactions:
+
+        if transaction.date >= start_date and transaction.date <= end_date:
+            list_of_transactions.append(
+
+                {
+                "date" : transaction.date,
+                "type" : transaction.type_of_transaction,
+                "value" : transaction.value
+                }
+
+            )
+
+    return Response({"transactions" : list_of_transactions})
 
 
