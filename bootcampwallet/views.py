@@ -174,6 +174,16 @@ def pay(request):
     )
 
     new_transaction.save()
+    
+    new_transaction = models.Transactions(
+        type_of_transaction="recieve",
+        user_id=recipient.id,
+        secondary_email=None,
+        value=value,
+        date=date.today()
+    )
+
+    new_transaction.save()
 
     new_transaction = models.Transactions(
         type_of_transaction="recieve",
