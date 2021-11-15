@@ -185,15 +185,7 @@ def pay(request):
 
     new_transaction.save()
 
-    new_transaction = models.Transactions(
-        type_of_transaction="recieve",
-        user_id=recipient.id,
-        secondary_email=None,
-        value=value,
-        date=date.today()
-    )
 
-    new_transaction.save()
 
     change_balance = models.Users.objects.get(email=request.user.email)
     change_balance.balance = F('balance') - value
