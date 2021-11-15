@@ -10,6 +10,7 @@ from rest_framework.authentication import TokenAuthentication
 from django.core.exceptions import ValidationError
 from datetime import date,datetime
 from django.db.models import F
+import requests
 
 
 
@@ -174,7 +175,7 @@ def pay(request):
     )
 
     new_transaction.save()
-    
+
     new_transaction = models.Transactions(
         type_of_transaction="recieve",
         user_id=recipient.id,
@@ -184,8 +185,6 @@ def pay(request):
     )
 
     new_transaction.save()
-
-
 
     change_balance = models.Users.objects.get(email=request.user.email)
     change_balance.balance = F('balance') - value
@@ -236,3 +235,27 @@ def get_transactions(request):
     return Response({"transactions" : list_of_transactions})
 
 
+@api_view(['GET',])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+
+def get_balance(request):
+
+    data = {}
+
+    try:
+        request_currency = request.query_params["currency"].upper()
+    except:
+        return Response(status=400)
+
+    currency_api_url = "http://api.exchangeratesapi.io/v1/latest?access_key=767366a9c7b953b7d6f43e0e74e40329"
+    currency_api = requests.get(currency_api_url).json()
+
+    try:
+        currency = currency_api['rates'][request_currency]
+    except:
+        return Response(status=400)
+
+    data["balance"] = round(request.user.balance * currency, 2)
+
+    return Response(data)
