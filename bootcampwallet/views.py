@@ -259,3 +259,139 @@ def get_balance(request):
     data["balance"] = round(request.user.balance * currency, 2)
 
     return Response(data)
+
+
+@api_view(['GET',])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+
+def get_series(request):
+
+    try:
+        start_date = request.query_params["start_date"]
+    except:
+        return Response(status=400)
+
+    try:
+        end_date = request.query_params["end_date"]
+    except:
+        return Response(status=400)
+
+    try:
+        request_currency = request.query_params["currency"].upper()
+    except:
+        return Response(status=400)
+
+    currency_api_url = "http://api.exchangeratesapi.io/v1/latest?access_key=767366a9c7b953b7d6f43e0e74e40329"
+    currency_api = requests.get(currency_api_url).json()
+
+    try:
+        currency = currency_api['rates'][request_currency]
+    except:
+        return Response(status=400)
+
+    data = {}
+
+    start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+    end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+    user_transactions = models.Transactions.objects.filter(user_id=request.user.id)
+
+    list_of_transactions = [[],[],[],[],[]]
+
+    for transaction in user_transactions:
+
+        if transaction.date >= start_date and transaction.date <= end_date:
+
+            if transaction.type_of_transaction == "fill":
+                list_of_transactions[0].append(round(transaction.value * currency,2))
+                list_of_transactions[4].append(transaction.date)
+
+            elif transaction.type_of_transaction == "withdraw":
+                list_of_transactions[1].append(round(transaction.value * currency,2))
+                list_of_transactions[4].append(transaction.date)
+
+            elif transaction.type_of_transaction == "pay":
+                list_of_transactions[2].append(round(transaction.value * currency,2))
+                list_of_transactions[4].append(transaction.date)
+
+            else:
+
+                list_of_transactions[3].append(round(transaction.value * currency,2))
+                list_of_transactions[4].append(transaction.date)
+
+
+
+            data["filled"] = list_of_transactions[0]
+            data["withdrawn"] = list_of_transactions[1]
+            data["payments_made"] = list_of_transactions[2]
+            data["payments_recieved"] = list_of_transactions[3]
+            data["dates"] = list(set(list_of_transactions[4]))
+
+    return Response(data)
+
+
+
+@api_view(['GET',])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+
+def get_summary(request):
+
+    try:
+        start_date = request.query_params["start_date"]
+    except:
+        return Response(status=400)
+
+    try:
+        end_date = request.query_params["end_date"]
+    except:
+        return Response(status=400)
+
+    try:
+        request_currency = request.query_params["currency"].upper()
+    except:
+        return Response(status=400)
+
+    currency_api_url = "http://api.exchangeratesapi.io/v1/latest?access_key=767366a9c7b953b7d6f43e0e74e40329"
+    currency_api = requests.get(currency_api_url).json()
+
+    try:
+        currency = currency_api['rates'][request_currency]
+    except:
+        return Response(status=400)
+
+    data = {}
+
+    start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+    end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+    user_transactions = models.Transactions.objects.filter(user_id=request.user.id)
+
+    list_of_transactions = [[],[],[],[]]
+
+    for transaction in user_transactions:
+
+        if transaction.date >= start_date and transaction.date <= end_date:
+
+            if transaction.type_of_transaction == "fill":
+                list_of_transactions[0].append(round(transaction.value * currency,2))
+
+            elif transaction.type_of_transaction == "withdraw":
+                list_of_transactions[1].append(round(transaction.value * currency,2))
+
+            elif transaction.type_of_transaction == "pay":
+                list_of_transactions[2].append(round(transaction.value * currency,2))
+            else:
+
+                list_of_transactions[3].append(round(transaction.value * currency,2))
+
+
+
+            data["filled"] = sum(list_of_transactions[0])
+            data["withdrawn"] = sum(list_of_transactions[1])
+            data["payments_made"] = sum(list_of_transactions[2])
+            data["payments_recieved"] = sum(list_of_transactions[3])
+
+
+    return Response(data)
