@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import TokenAuthentication
 from django.core.exceptions import ValidationError
-from datetime import date,datetime
+from datetime import date, datetime, timedelta
 from django.db.models import F
 import requests
 
@@ -86,7 +86,6 @@ def logging_out(request):
 @permission_classes([IsAuthenticated])
 def fill(request):
 
-    data = {}
 
     value = request.data["value"]
     if (type(value)!=int and type(value)!=float) or value <= 0.0 :
@@ -105,17 +104,16 @@ def fill(request):
     change_balance.balance = F('balance') + value
     change_balance.save()
 
-    data["balance"] = request.user.balance
 
 
-    return Response(data)
+    return Response(status=200)
 
 @api_view(['POST',])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def withdraw(request):
 
-    data = {}
+
 
     value = request.data["value"]
     if (type(value)!=int and type(value)!=float) or value <= 0.0 :
@@ -137,16 +135,15 @@ def withdraw(request):
     change_balance.balance = F('balance') - value
     change_balance.save()
 
-    data["balance"] = request.user.balance
 
-    return Response(data)
+
+    return Response(status=200)
 
 
 @api_view(['POST',])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def pay(request):
-    data = {}
 
     value = request.data["value"]
     if (type(value) != int and type(value) != float) or value <= 0.0:
@@ -190,10 +187,10 @@ def pay(request):
     change_balance.balance = F('balance') - value
     change_balance.save()
 
-    data["balance"] = request.user.balance
+
     recipient.balance = F('balance') + value
     recipient.save()
-    return Response(data)
+    return Response(status=200)
 
 
 @api_view(['GET',])
@@ -243,18 +240,15 @@ def get_balance(request):
 
     data = {}
 
-    try:
-        request_currency = request.query_params["currency"].upper()
-    except:
+    request_currency = request.query_params["currency"].upper()
+
+    if request_currency != "EUR" and request_currency != "USD" and request_currency != "UAH":
         return Response(status=400)
 
     currency_api_url = "http://api.exchangeratesapi.io/v1/latest?access_key=767366a9c7b953b7d6f43e0e74e40329"
     currency_api = requests.get(currency_api_url).json()
 
-    try:
-        currency = currency_api['rates'][request_currency]
-    except:
-        return Response(status=400)
+    currency = currency_api['rates'][request_currency]
 
     data["balance"] = round(request.user.balance * currency, 2)
 
@@ -277,56 +271,68 @@ def get_series(request):
     except:
         return Response(status=400)
 
-    try:
-        request_currency = request.query_params["currency"].upper()
-    except:
+
+    request_currency = request.query_params["currency"].upper()
+
+    if request_currency != "EUR" and request_currency != "USD" and request_currency != "UAH":
         return Response(status=400)
 
     currency_api_url = "http://api.exchangeratesapi.io/v1/latest?access_key=767366a9c7b953b7d6f43e0e74e40329"
     currency_api = requests.get(currency_api_url).json()
 
-    try:
-        currency = currency_api['rates'][request_currency]
-    except:
-        return Response(status=400)
+
+    currency = currency_api['rates'][request_currency]
+
 
     data = {}
 
     start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
     end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
 
-    user_transactions = models.Transactions.objects.filter(user_id=request.user.id)
+    def daterange(start_date, end_date):
+        for n in range(int((end_date - start_date).days)):
+            yield start_date + timedelta(n)
 
-    list_of_transactions = [[],[],[],[],[]]
+    list_of_transactions = [[], [], [], [], []]
 
-    for transaction in user_transactions:
 
-        if transaction.date >= start_date and transaction.date <= end_date:
+    for date in daterange(start_date, end_date + timedelta(1)):
+        sum_fill, sum_withdraw, sum_pay, sum_recieve = 0.0, 0.0, 0.0, 0.0
+        user_transactions = models.Transactions.objects.filter(user_id=request.user.id, date=date)
+
+
+
+        for transaction in user_transactions:
+
+
 
             if transaction.type_of_transaction == "fill":
-                list_of_transactions[0].append(round(transaction.value * currency,2))
-                list_of_transactions[4].append(transaction.date)
+                sum_fill += (transaction.value * currency)
+
 
             elif transaction.type_of_transaction == "withdraw":
-                list_of_transactions[1].append(round(transaction.value * currency,2))
-                list_of_transactions[4].append(transaction.date)
+                sum_withdraw += (currency * transaction.value)
 
             elif transaction.type_of_transaction == "pay":
-                list_of_transactions[2].append(round(transaction.value * currency,2))
-                list_of_transactions[4].append(transaction.date)
+                sum_pay += (currency * transaction.value)
 
             else:
 
-                list_of_transactions[3].append(round(transaction.value * currency,2))
-                list_of_transactions[4].append(transaction.date)
+                sum_recieve += (currency * transaction.value)
+
+        list_of_transactions[0].append(sum_fill)
+        list_of_transactions[1].append(sum_withdraw)
+        list_of_transactions[2].append(sum_pay)
+        list_of_transactions[3].append(sum_recieve)
+        list_of_transactions[4].append(date)
 
 
 
-            data["filled"] = list_of_transactions[0]
-            data["withdrawn"] = list_of_transactions[1]
-            data["payments_made"] = list_of_transactions[2]
-            data["payments_recieved"] = list_of_transactions[3]
-            data["dates"] = list(set(list_of_transactions[4]))
+        data["filled"] = list_of_transactions[0]
+        data["withdrawn"] = list_of_transactions[1]
+        data["payments_made"] = list_of_transactions[2]
+        data["payments_recieved"] = list_of_transactions[3]
+        data["dates"] = list_of_transactions[4]
 
     return Response(data)
 
@@ -348,18 +354,15 @@ def get_summary(request):
     except:
         return Response(status=400)
 
-    try:
-        request_currency = request.query_params["currency"].upper()
-    except:
+    request_currency = request.query_params["currency"].upper()
+
+    if request_currency != "EUR" and request_currency != "USD" and request_currency != "UAH":
         return Response(status=400)
 
     currency_api_url = "http://api.exchangeratesapi.io/v1/latest?access_key=767366a9c7b953b7d6f43e0e74e40329"
     currency_api = requests.get(currency_api_url).json()
 
-    try:
-        currency = currency_api['rates'][request_currency]
-    except:
-        return Response(status=400)
+    currency = currency_api['rates'][request_currency]
 
     data = {}
 
